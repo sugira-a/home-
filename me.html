@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Data Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .actions {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+    }
+    .actions button {
+      padding: 10px 15px;
+      background-color: #0078d7;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .actions button:hover {
+      background-color: #005fa3;
+    }
+    .search {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .search input {
+      padding: 10px;
+      width: 80%;
+      max-width: 400px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .table-container {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #0078d7;
+      color: white;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    button.deleteRow {
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button.deleteRow:hover {
+      background-color: #cc0000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Product Data Management</h1>
+    <div class="actions">
+      <button id="addRow">Add Row</button>
+      <button id="saveTable">Save Table</button>
+      <button id="downloadTable">Download Table</button>
+    </div>
+    <div class="search">
+      <input type="text" id="search" placeholder="Search products...">
+    </div>
+    <div class="table-container">
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th>Image</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Price</th>
+            <th>Selling Price</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows dynamically added here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const tableBody = document.querySelector("#dataTable tbody");
+      const addRowButton = document.getElementById("addRow");
+      const saveTableButton = document.getElementById("saveTable");
+      const downloadTableButton = document.getElementById("downloadTable");
+      const searchInput = document.getElementById("search");
+
+      function addRow(data = {}) {
+        const row = document.createElement("tr");
+        const imageData = data.image || "";
+        const productName = data.name || "";
+        const description = data.description || "";
+        const price = data.price || "";
+        const sellingPrice = data.sellingPrice || "";
+
+        row.innerHTML = `
+          <td>
+            <input type="file" accept="image/*">
+            <div class="image-preview">
+              ${imageData ? `<img src="${imageData}" alt="Product Image" style="max-width: 50px; max-height: 50px;">` : ""}
+            </div>
+          </td>
+          <td><input type="text" value="${productName}" placeholder="Product Name"></td>
+          <td><input type="text" value="${description}" placeholder="Description"></td>
+          <td><input type="number" value="${price}" placeholder="Price"></td>
+          <td><input type="number" value="${sellingPrice}" placeholder="Selling Price"></td>
+          <td><button class="deleteRow">Delete</button></td>
+        `;
+
+        const fileInput = row.querySelector('input[type="file"]');
+        const previewDiv = row.querySelector(".image-preview");
+
+        fileInput.addEventListener("change", () => {
+          const file = fileInput.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              previewDiv.innerHTML = `<img src="${e.target.result}" alt="Product Image" style="max-width: 50px; max-height: 50px;">`;
+              saveToLocalStorage();
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+
+        const deleteButton = row.querySelector(".deleteRow");
+        deleteButton.addEventListener("click", () => {
+          row.remove();
+          saveToLocalStorage();
+        });
+
+        tableBody.appendChild(row);
+      }
+
+      function saveToLocalStorage() {
+        const rows = Array.from(tableBody.rows).map(row => {
+          const cells = Array.from(row.cells);
+          const image = cells[0].querySelector(".image-preview img")?.src || "";
+          const name = cells[1].querySelector("input")?.value || "";
+          const description = cells[2].querySelector("input")?.value || "";
+          const price = cells[3].querySelector("input")?.value || "";
+          const sellingPrice = cells[4].querySelector("input")?.value || "";
+
+          return { image, name, description, price, sellingPrice };
+        });
+
+        localStorage.setItem("productTable", JSON.stringify(rows));
+      }
+
+      function loadFromLocalStorage() {
+        const savedRows = JSON.parse(localStorage.getItem("productTable") || "[]");
+        savedRows.forEach(data => addRow(data));
+      }
+
+      function downloadTable() {
+        const rows = Array.from(tableBody.rows).map(row => {
+          const cells = Array.from(row.cells).map(cell => {
+            const input = cell.querySelector("input");
+            return input ? input.value : "";
+          });
+          return cells;
+        });
+
+        const csvContent = rows.map(row => row.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "table_data.csv";
+        link.click();
+      }
+
+      function filterRows() {
+        const query = searchInput.value.toLowerCase();
+        Array.from(tableBody.rows).forEach(row => {
+          const match = Array.from(row.cells).some(cell => {
+            const input = cell.querySelector("input");
+            return input && input.value.toLowerCase().includes(query);
+          });
+          row.style.display = match ? "" : "none";
+        });
+      }
+
+      addRowButton.addEventListener("click", () => addRow());
+      saveTableButton.addEventListener("click", saveToLocalStorage);
+      downloadTableButton.addEventListener("click", downloadTable);
+      searchInput.addEventListener("input", filterRows);
+
+      loadFromLocalStorage();
+    });
+  </script>
+</body>
+</html>
